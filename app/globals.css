@@ -1,0 +1,162 @@
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --purple:       #534AB7;
+  --purple-dark:  #3C3489;
+  --purple-light: #EEEDFE;
+  --teal:         #1D9E75;
+  --teal-light:   #E1F5EE;
+  --amber:        #BA7517;
+  --amber-light:  #FAEEDA;
+  --green:        #27500A;
+  --green-light:  #EAF3DE;
+  --text-pri:     #1A1A18;
+  --text-sec:     #5F5E5A;
+  --text-hint:    #888780;
+  --border:       #D3D1C7;
+  --bg-page:      #F8F7F4;
+  --bg-card:      #FFFFFF;
+  --bg-secondary: #F1EFE8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg-page);
+  color: var(--text-pri);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Shared input styles */
+.input {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text-pri);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input:focus {
+  border-color: var(--purple);
+}
+
+/* Primary button */
+.btn-primary {
+  background: var(--purple);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  width: 100%;
+}
+.btn-primary:hover  { opacity: 0.88; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Ghost button */
+.btn-ghost {
+  background: transparent;
+  color: var(--text-sec);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 20px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-ghost:hover { background: var(--bg-secondary); }
+
+/* Card */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.badge-purple { background: var(--purple-light); color: var(--purple-dark); }
+.badge-green  { background: var(--green-light);  color: var(--green); }
+.badge-amber  { background: var(--amber-light);  color: var(--amber); }
+
+/* Choice button (onboarding selections) */
+.choice-btn {
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-size: 13px;
+  color: var(--text-sec);
+  cursor: pointer;
+  text-align: left;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s;
+  width: 100%;
+}
+.choice-btn:hover   { border-color: var(--purple); background: #EEEDFE22; }
+.choice-btn.selected { border-color: var(--purple); background: var(--purple-light); color: var(--purple-dark); font-weight: 500; }
+
+/* Skill chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--purple-light);
+  color: var(--purple-dark);
+  font-size: 12px;
+  font-weight: 500;
+  margin: 3px;
+}
+
+/* Progress bar */
+.progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--purple);
+  transition: width 0.4s ease;
+}
+
+/* Field label */
+.field-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  display: block;
+}
