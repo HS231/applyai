@@ -49,28 +49,13 @@ const LEGIT_SOURCES = [
   'jobs.', 'apply.', 'hiring', 'join.', 'recruit',
 ]
 
-function formatExperience(expObj) {
-  if (!expObj) return 'Not specified'
-  if (expObj.no_experience_required) return 'No experience required'
-  if (!expObj.experience_mentioned) return 'Not specified'
-  const months = expObj.required_experience_in_months
-  if (!months) return 'Experience required (amount not specified)'
-  const years = Math.round(months / 12)
-  return `${years}+ year${years !== 1 ? 's' : ''} required`
-}
-
-function formatEducation(eduObj) {
-  if (!eduObj) return 'Not specified'
-  const level = eduObj.required_education?.degree_level
-  const mentioned = eduObj.education_required
-  if (!mentioned) return 'Not specified'
-  return level || 'Degree required'
-}
-
 export async function POST(request) {
   try {
     const body = await request.json()
     const { sessionId } = body
+
+    console.log('=== FETCH JOBS CALLED ===')
+    console.log('Session ID:', sessionId)
 
     // 1. Get user profile
     const { data: profile, error: profileError } = await supabase
@@ -87,61 +72,49 @@ export async function POST(request) {
     const userCurrency = profile.currency || 'USD'
     const exchangeRate = await getExchangeRate(userCurrency)
 
-    // 3. Build query
-    const locationTerm = profile.work_arrangement === 'remote'
-      ? 'remote'
-      : profile.location?.split(',')[0] || ''
+    // 3. Search for each role separately and merge
+    const roles = (profile.target_role || '').split(',').map(r => r.trim()).filter(Boolean)
+    let rawJobs = []
 
-    const query = encodeURIComponent(
-      `${profile.target_role} ${profile.seniority || ''} ${locationTerm}`.trim()
-    )
+    for (const role of roles) {
+      try {
+        const locationTerm = profile.work_arrangement === 'remote'
+          ? 'remote'
+          : profile.location?.split(',')[0] || ''
 
-    const locationParam = encodeURIComponent(profile.location || '')
+        const roleQuery = encodeURIComponent(
+          `${role} ${profile.seniority || ''} ${locationTerm}`.trim()
+        )
 
-    // 4. First search — specific query
-    const jobsRes = await fetch(
-      `https://jsearch.p.rapidapi.com/search?query=${query}&page=1&num_pages=10&date_posted=month&location=${locationParam}&radius=200`,
-      {
-        headers: {
-          'x-rapidapi-host': 'jsearch.p.rapidapi.com',
-          'x-rapidapi-key': process.env.RAPIDAPI_KEY,
-        },
+        const res = await fetch(
+          `https://jsearch.p.rapidapi.com/search?query=${roleQuery}&page=1&num_pages=5&date_posted=month&location=${encodeURIComponent(profile.location || '')}&radius=200`,
+          {
+            headers: {
+              'x-rapidapi-host': 'jsearch.p.rapidapi.com',
+              'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+            },
+          }
+        )
+        const data = await res.json()
+        const jobs = data.data || []
+        console.log(`Jobs for "${role}":`, jobs.length)
+
+        // Deduplicate by job_id
+        const existingIds = new Set(rawJobs.map(j => j.job_id))
+        const newOnes = jobs.filter(j => !existingIds.has(j.job_id))
+        rawJobs = [...rawJobs, ...newOnes]
+      } catch (err) {
+        console.error(`Search failed for role "${role}":`, err)
       }
-    )
-
-    const jobsData = await jobsRes.json()
-    let rawJobs = jobsData.data || []
-
-    // 5. Second broader search — page 2 with just the role title
-    try {
-      const broadQuery = encodeURIComponent(`${profile.target_role}`.trim())
-      const broadRes = await fetch(
-        `https://jsearch.p.rapidapi.com/search?query=${broadQuery}&page=2&num_pages=5&date_posted=month&location=${locationParam}&radius=200`,
-        {
-          headers: {
-            'x-rapidapi-host': 'jsearch.p.rapidapi.com',
-            'x-rapidapi-key': process.env.RAPIDAPI_KEY,
-          },
-        }
-      )
-      const broadData = await broadRes.json()
-      const broadJobs = broadData.data || []
-
-      // Merge — deduplicate by job_id
-      const existingIds = new Set(rawJobs.map(j => j.job_id))
-      const newOnes = broadJobs.filter(j => !existingIds.has(j.job_id))
-      rawJobs = [...rawJobs, ...newOnes]
-    } catch (err) {
-      console.error('Second search failed:', err)
     }
 
-    console.log('Total jobs from JSearch:', rawJobs.length)
+    console.log('Total jobs after all searches:', rawJobs.length)
 
     if (rawJobs.length === 0) {
       return NextResponse.json({ jobs: [] })
     }
 
-    // 6. Filter by legitimate sources
+    // 4. Filter by legitimate sources
     const filteredBySource = rawJobs.filter(job => {
       const url = (job.job_apply_link || '').toLowerCase()
       const publisher = (job.job_publisher || '').toLowerCase()
@@ -151,7 +124,7 @@ export async function POST(request) {
     })
     const sourceFiltered = filteredBySource.length >= 3 ? filteredBySource : rawJobs
 
-    // 7. Filter by work arrangement
+    // 5. Filter by work arrangement
     let filteredJobs = sourceFiltered
     if (profile.work_arrangement === 'remote') {
       const remoteOnly = sourceFiltered.filter(j =>
@@ -164,7 +137,7 @@ export async function POST(request) {
 
     console.log('Jobs after filtering:', filteredJobs.length)
 
-    // 8. Check cache in Supabase
+    // 6. Check cache in Supabase
     const jobIds = filteredJobs.slice(0, 20).map(j => j.job_id)
     const { data: existingJobs } = await supabase
       .from('jobs')
@@ -174,49 +147,44 @@ export async function POST(request) {
     const existingJobMap = {}
     existingJobs?.forEach(j => { existingJobMap[j.job_id] = j })
 
-    // 9. Score each job — up to 20
+    // 7. Score each job
     const scoredJobs = await Promise.all(
       filteredJobs.slice(0, 20).map(async (job) => {
 
         const requiredSkills = job.job_required_skills || []
-        const experienceInfo = formatExperience(job.job_required_experience)
-        const educationInfo = formatEducation(job.job_required_education)
-        const expInPlaceOfEdu = job.job_experience_in_place_of_education
-          ? 'Yes — experience accepted in place of degree'
-          : 'No'
+        const experienceInfo = job.job_required_experience?.no_experience_required
+          ? 'No experience required'
+          : job.job_required_experience?.required_experience_in_months
+          ? `${Math.round(job.job_required_experience.required_experience_in_months / 12)}+ years required`
+          : 'Not specified'
+        const educationInfo = job.job_required_education?.degree_level || 'Not specified'
 
-        // Return cached score instantly
         if (existingJobMap[job.job_id]) {
           const cached = existingJobMap[job.job_id]
           const convertedSalary = job.job_min_salary
             ? formatSalary(job.job_min_salary, job.job_max_salary, userCurrency, exchangeRate)
             : cached.salary
           return {
-            id:                 cached.job_id,
-            title:              cached.title,
-            company:            cached.company,
-            logo:               job.employer_logo || null,
-            publisher:          job.job_publisher || '',
-            companyType:        job.employer_company_type || '',
-            location:           cached.location,
-            salary:             convertedSalary,
-            type:               cached.job_type,
-            url:                cached.url,
-            description:        cached.description,
-            scores:             cached.scores || {},
-            score:              Number(cached.score),
-            reason:             cached.reason,
-            strengths:          Array.isArray(cached.strengths) ? cached.strengths : [],
-            gaps:               Array.isArray(cached.gaps) ? cached.gaps : [],
-            topPick:            cached.top_pick,
-            isRemote:           job.job_is_remote || false,
-            requiredSkills,
-            experienceRequired: experienceInfo,
-            educationRequired:  educationInfo,
+            id:          cached.job_id,
+            title:       cached.title,
+            company:     cached.company,
+            logo:        job.employer_logo || null,
+            publisher:   job.job_publisher || '',
+            location:    cached.location,
+            salary:      convertedSalary,
+            type:        cached.job_type,
+            url:         cached.url,
+            description: cached.description,
+            scores:      cached.scores || {},
+            score:       Number(cached.score),
+            reason:      cached.reason,
+            strengths:   Array.isArray(cached.strengths) ? cached.strengths : [],
+            gaps:        Array.isArray(cached.gaps) ? cached.gaps : [],
+            topPick:     cached.top_pick,
+            isRemote:    job.job_is_remote || false,
           }
         }
 
-        // Not cached — score with Claude
         try {
           const message = await anthropic.messages.create({
             model: 'claude-sonnet-4-6',
@@ -245,19 +213,18 @@ JOB:
 - Required skills: ${requiredSkills.length > 0 ? requiredSkills.join(', ') : 'See description'}
 - Required experience: ${experienceInfo}
 - Required education: ${educationInfo}
-- Experience in place of education accepted: ${expInPlaceOfEdu}
+- Qualifications: ${(job.job_highlights?.Qualifications || []).slice(0, 5).join(' | ')}
 - Description: ${(job.job_description || '').slice(0, 500)}
 
 RUBRIC — score each 1 to 10:
 1. title (25%): Does job title and seniority match candidate target? Exact match=10, adjacent=7, different function=2
-2. skills (30%): Compare candidate skills against REQUIRED SKILLS listed above. What % does candidate have? 100%=10, 70%=7, 40%=4, 20%=2
-3. experience (25%): Does candidate meet the REQUIRED EXPERIENCE? Met=9-10, close=6-8, under by 2+ years=3-5, far off=1-2
+2. skills (30%): Compare candidate skills against required skills. What % does candidate have? 100%=10, 70%=7, 40%=4, 20%=2
+3. experience (25%): Does candidate meet required experience? Met=9-10, close=6-8, under=3-5, far off=1-2
 4. location (10%): Candidate wants "${profile.work_arrangement}" in "${profile.location}". Job remote: ${job.job_is_remote}. Match=10, partial=6, mismatch=2
 5. culture (10%): Does company size and type match preference? Match=10, one tier off=6, two tiers off=3
 
-For gaps: list ONLY concrete missing requirements — specific skills from required skills list not in candidate profile, education/certification requirements not met, experience shortfall. No personality observations.
-
-For strengths: list specific matches between candidate profile and the required skills/experience listed above.
+For gaps: list ONLY concrete missing requirements from JD not in candidate profile.
+For strengths: list specific matches between candidate and JD requirements.
 
 {
   "title": 8,
@@ -267,7 +234,7 @@ For strengths: list specific matches between candidate profile and the required 
   "culture": 7,
   "reason": "One sentence summary of fit",
   "strengths": ["Candidate has X which matches required skill Y"],
-  "gaps": ["Missing: X from required skills list", "JD requires Y degree, not listed in profile"]
+  "gaps": ["Missing: X from required skills", "Requires Y degree not listed in profile"]
 }`,
               },
             ],
@@ -290,22 +257,18 @@ For strengths: list specific matches between candidate profile and the required 
             : 'Not listed'
 
           return {
-            id:                 job.job_id,
-            title:              job.job_title,
-            company:            job.employer_name,
-            logo:               job.employer_logo || null,
-            publisher:          job.job_publisher || '',
-            companyType:        job.employer_company_type || '',
-            location:           job.job_city ? `${job.job_city}, ${job.job_country}` : 'Remote',
-            salary:             convertedSalary,
-            type:               job.job_employment_type || 'Full-time',
-            url:                job.job_apply_link,
-            posted:             job.job_posted_at_datetime_utc,
-            description:        (job.job_description || '').slice(0, 300),
-            isRemote:           job.job_is_remote || false,
-            requiredSkills,
-            experienceRequired: experienceInfo,
-            educationRequired:  educationInfo,
+            id:          job.job_id,
+            title:       job.job_title,
+            company:     job.employer_name,
+            logo:        job.employer_logo || null,
+            publisher:   job.job_publisher || '',
+            location:    job.job_city ? `${job.job_city}, ${job.job_country}` : 'Remote',
+            salary:      convertedSalary,
+            type:        job.job_employment_type || 'Full-time',
+            url:         job.job_apply_link,
+            posted:      job.job_posted_at_datetime_utc,
+            description: (job.job_description || '').slice(0, 300),
+            isRemote:    job.job_is_remote || false,
             scores: {
               title:      cats.title,
               skills:     cats.skills,
@@ -326,12 +289,12 @@ For strengths: list specific matches between candidate profile and the required 
       })
     )
 
-    // 10. Filter nulls, sort by score
+    // 8. Filter nulls, sort by score
     const validJobs = scoredJobs
       .filter(Boolean)
       .sort((a, b) => b.score - a.score)
 
-    // 11. Save new jobs to Supabase
+    // 9. Save new jobs to Supabase
     const newJobs = validJobs.filter(j => !existingJobMap[j.id])
     if (newJobs.length > 0) {
       await supabase.from('jobs').upsert(
