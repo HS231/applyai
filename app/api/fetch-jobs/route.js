@@ -35,18 +35,187 @@ async function getExchangeRate(targetCurrency) {
   }
 }
 
-function formatSalary(usdMin, usdMax, currency, rate) {
-  if (!usdMin) return 'Not listed'
-  const min = Math.round(usdMin * rate)
-  const max = Math.round((usdMax || usdMin) * rate)
-  return `${currency} ${min.toLocaleString()}–${max.toLocaleString()}`
+// Parse SerpAPI salary string — only convert to annual if period is clear
+function parseSalaryString(salaryStr) {
+  if (!salaryStr) return { min: null, max: null }
+
+  const lower = salaryStr.toLowerCase()
+  const numbers = salaryStr.replace(/,/g, '').match(/\d+(\.\d+)?/g)
+  if (!numbers || numbers.length === 0) return { min: null, max: null }
+
+  let min = parseFloat(numbers[0])
+  let max = numbers.length > 1 ? parseFloat(numbers[1]) : min
+
+  if (lower.includes('hour') || lower.includes('/hr') || lower.includes('per hour')) {
+    // Hourly — convert to annual
+    min = min * 40 * 52
+    max = max * 40 * 52
+  } else if (lower.includes('month') || lower.includes('/mo')) {
+    // Monthly — convert to annual
+    min = min * 12
+    max = max * 12
+  } else if (lower.includes('year') || lower.includes('annual') || lower.includes('/yr') || lower.includes('per year')) {
+    // Already annual — use as is
+  } else if (lower.includes('day') || lower.includes('/day')) {
+    // Daily — convert to annual
+    min = min * 260
+    max = max * 260
+  } else {
+    // Period unclear — check if numbers look like annual (>10000) or hourly (<500)
+    if (min < 500) {
+      // Likely hourly
+      min = min * 40 * 52
+      max = max * 40 * 52
+    } else if (min < 10000) {
+      // Likely monthly
+      min = min * 12
+      max = max * 12
+    }
+    // Otherwise treat as annual
+  }
+
+  return { min, max }
 }
 
-const LEGIT_SOURCES = [
-  'linkedin', 'indeed', 'glassdoor', 'ziprecruiter', 'monster',
-  'lever', 'workday', 'greenhouse', 'smartrecruiters', 'jobvite',
-  'icims', 'taleo', 'bamboohr', 'myworkdayjobs', 'careers.',
-  'jobs.', 'apply.', 'hiring', 'join.', 'recruit',
+function formatSalary(min, max, currency, rate) {
+  if (!min) return 'Not listed'
+  const convertedMin = Math.round(min * rate)
+  const convertedMax = Math.round((max || min) * rate)
+  return `${currency} ${convertedMin.toLocaleString()}–${convertedMax.toLocaleString()} / year`
+}
+
+// Claude expands role into adjacent titles — max 3 total
+async function expandRole(role) {
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 150,
+      messages: [{
+        role: 'user',
+        content: `You are a job search expert. Given a job title, return the original (spelling-corrected) plus 2 adjacent similar titles.
+
+Job title: "${role}"
+
+Return ONLY a JSON array of 3 strings max, no markdown.
+Example: ["Financial Manager", "Finance Manager", "FP&A Manager"]`
+      }]
+    })
+    const text = msg.content[0].text.trim()
+      .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+    const expanded = JSON.parse(text)
+    console.log(`Expanded "${role}" to:`, expanded)
+    return Array.isArray(expanded) ? expanded.slice(0, 3) : [role]
+  } catch {
+    return [role]
+  }
+}
+
+// Claude extracts salary from JD only when SerpAPI returns null
+// Claude reads the JD and determines the period itself — returns annual USD
+async function extractSalaryFromJD(jd) {
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 150,
+      messages: [{
+        role: 'user',
+        content: `Read this job description and extract the salary if mentioned.
+
+Rules:
+- Determine if it is hourly, daily, monthly, or annual from context
+- Convert everything to ANNUAL USD:
+  - Hourly: multiply by 40 hours x 52 weeks
+  - Daily: multiply by 260 working days
+  - Monthly: multiply by 12
+  - Annual: use as is
+- If salary is NOT clearly mentioned, return null for both fields
+- Do NOT guess or estimate — only extract what is explicitly stated
+
+Return ONLY valid JSON, no markdown:
+{"salary_min": 80000, "salary_max": 100000}
+or
+{"salary_min": null, "salary_max": null}
+
+Job description:
+${jd.slice(0, 1000)}`
+      }]
+    })
+    const text = msg.content[0].text.trim()
+      .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
+    return JSON.parse(text)
+  } catch {
+    return { salary_min: null, salary_max: null }
+  }
+}
+
+// Extract job type from JD when SerpAPI returns null
+async function extractJobTypeFromJD(jd) {
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 50,
+      messages: [{
+        role: 'user',
+        content: `What is the employment type in this job description? Return ONLY one of: "Full-time", "Part-time", "Contract", "Internship", or null if unclear. No other text.
+
+JD: ${jd.slice(0, 500)}`
+      }]
+    })
+    const text = msg.content[0].text.trim().replace(/"/g, '')
+    const valid = ['Full-time', 'Part-time', 'Contract', 'Internship']
+    return valid.includes(text) ? text : null
+  } catch {
+    return null
+  }
+}
+
+// Source priority scoring — higher = better source
+function getSourcePriority(applyOptions) {
+  const PRIORITY_SOURCES = [
+    { keywords: ['linkedin'], score: 100 },
+    { keywords: ['glassdoor'], score: 90 },
+    { keywords: ['indeed'], score: 85 },
+    { keywords: ['lever', 'greenhouse', 'workday', 'myworkdayjobs', 'smartrecruiters',
+                  'jobvite', 'icims', 'taleo', 'bamboohr', 'ashbyhq', 'rippling',
+                  'successfactors', 'oraclecloud', 'recruitee'], score: 80 },
+    { keywords: ['careers.', 'jobs.', 'apply.', 'career.', 'work.'], score: 70 },
+    { keywords: ['ziprecruiter', 'monster', 'careerbuilder'], score: 50 },
+  ]
+
+  if (!applyOptions || applyOptions.length === 0) return 0
+
+  let best = 0
+  for (const option of applyOptions) {
+    const url = (option.link || '').toLowerCase()
+    const title = (option.title || '').toLowerCase()
+    for (const source of PRIORITY_SOURCES) {
+      if (source.keywords.some(k => url.includes(k) || title.includes(k))) {
+        best = Math.max(best, source.score)
+      }
+    }
+  }
+  return best
+}
+
+// Parse posted_at string to a sortable number (days ago)
+function parsePostedDays(postedStr) {
+  if (!postedStr) return 999
+  const lower = postedStr.toLowerCase()
+  if (lower.includes('hour') || lower.includes('just') || lower.includes('today')) return 0
+  if (lower.includes('yesterday') || lower === '1 day ago') return 1
+  const match = lower.match(/(\d+)\s*(day|week|month)/)
+  if (!match) return 999
+  const num = parseInt(match[1])
+  if (match[2] === 'day') return num
+  if (match[2] === 'week') return num * 7
+  if (match[2] === 'month') return num * 30
+  return 999
+}
+
+const STAFFING_AGENCIES = [
+  'robert half', 'hays', 'randstad', 'manpower', 'adecco',
+  'kelly services', 'staffmark', 'spherion', 'insight global',
+  'aston carter', 'kforce', 'teksystems', 'modis', 'apex systems',
 ]
 
 export async function POST(request) {
@@ -72,72 +241,75 @@ export async function POST(request) {
     const userCurrency = profile.currency || 'USD'
     const exchangeRate = await getExchangeRate(userCurrency)
 
-    // 3. Search for each role separately and merge
-    const roles = (profile.target_role || '').split(',').map(r => r.trim()).filter(Boolean)
+    // 3. Build clean location for SerpAPI
+    const rawLocation = profile.location || ''
+    const locationParts = rawLocation.split(',').map(s => s.trim())
+    const cleanLocation = locationParts.length >= 2
+      ? `${locationParts[0]}, ${locationParts[locationParts.length - 1]}`
+      : locationParts[0] || ''
+    const locationTerm = profile.work_arrangement === 'remote' ? '' : cleanLocation
+    const location = encodeURIComponent(locationTerm)
+
+    // 4. Expand each input role into adjacent titles
+    const inputRoles = (profile.target_role || '').split(',').map(r => r.trim()).filter(Boolean)
+    const expandedArrays = await Promise.all(inputRoles.map(r => expandRole(r)))
+    const allRoles = [...new Set(expandedArrays.flat())]
+    console.log('All roles to search:', allRoles)
+
+    // 5. Search SerpAPI for each role
     let rawJobs = []
-
-    for (const role of roles) {
+    for (const role of allRoles) {
       try {
-        const locationTerm = profile.work_arrangement === 'remote'
-          ? 'remote'
-          : profile.location?.split(',')[0] || ''
-
-        const roleQuery = encodeURIComponent(
-          `${role} ${profile.seniority || ''} ${locationTerm}`.trim()
-        )
-
+        const q = encodeURIComponent(role)
         const res = await fetch(
-          `https://jsearch.p.rapidapi.com/search?query=${roleQuery}&page=1&num_pages=5&date_posted=month&location=${encodeURIComponent(profile.location || '')}&radius=200`,
-          {
-            headers: {
-              'x-rapidapi-host': 'jsearch.p.rapidapi.com',
-              'x-rapidapi-key': process.env.RAPIDAPI_KEY,
-            },
-          }
+          `https://serpapi.com/search.json?engine=google_jobs&q=${q}&location=${location}&hl=en&api_key=${process.env.SERPAPI_KEY}`,
         )
         const data = await res.json()
-        const jobs = data.data || []
+        const jobs = data.jobs_results || []
         console.log(`Jobs for "${role}":`, jobs.length)
 
-        // Deduplicate by job_id
         const existingIds = new Set(rawJobs.map(j => j.job_id))
         const newOnes = jobs.filter(j => !existingIds.has(j.job_id))
         rawJobs = [...rawJobs, ...newOnes]
       } catch (err) {
-        console.error(`Search failed for role "${role}":`, err)
+        console.error(`Search failed for "${role}":`, err)
       }
     }
 
-    console.log('Total jobs after all searches:', rawJobs.length)
+    console.log('Total raw jobs:', rawJobs.length)
+    if (rawJobs.length === 0) return NextResponse.json({ jobs: [] })
 
-    if (rawJobs.length === 0) {
-      return NextResponse.json({ jobs: [] })
-    }
-
-    // 4. Filter by legitimate sources
-    const filteredBySource = rawJobs.filter(job => {
-      const url = (job.job_apply_link || '').toLowerCase()
-      const publisher = (job.job_publisher || '').toLowerCase()
-      return LEGIT_SOURCES.some(source =>
-        url.includes(source) || publisher.includes(source)
-      )
+    // 6. Filter out staffing agencies
+    const noStaffing = rawJobs.filter(job => {
+      const employer = (job.company_name || '').toLowerCase()
+      return !STAFFING_AGENCIES.some(agency => employer.includes(agency))
     })
-    const sourceFiltered = filteredBySource.length >= 3 ? filteredBySource : rawJobs
+    let filteredJobs = noStaffing.length >= 3 ? noStaffing : rawJobs
 
-    // 5. Filter by work arrangement
-    let filteredJobs = sourceFiltered
+    // 7. Filter by work arrangement
     if (profile.work_arrangement === 'remote') {
-      const remoteOnly = sourceFiltered.filter(j =>
-        j.job_is_remote ||
-        (j.job_description || '').toLowerCase().includes('remote') ||
-        (j.job_title || '').toLowerCase().includes('remote')
+      const remoteOnly = filteredJobs.filter(j =>
+        j.detected_extensions?.work_from_home ||
+        (j.description || '').toLowerCase().includes('remote') ||
+        (j.title || '').toLowerCase().includes('remote')
       )
-      filteredJobs = remoteOnly.length >= 3 ? remoteOnly : sourceFiltered
+      filteredJobs = remoteOnly.length >= 3 ? remoteOnly : filteredJobs
     }
 
-    console.log('Jobs after filtering:', filteredJobs.length)
+    // 8. Sort by source priority first, then by date (newest first)
+    filteredJobs.sort((a, b) => {
+      const aPriority = getSourcePriority(a.apply_options)
+      const bPriority = getSourcePriority(b.apply_options)
+      if (bPriority !== aPriority) return bPriority - aPriority
+      // Same priority — sort by date
+      const aDays = parsePostedDays(a.detected_extensions?.posted_at)
+      const bDays = parsePostedDays(b.detected_extensions?.posted_at)
+      return aDays - bDays
+    })
 
-    // 6. Check cache in Supabase
+    console.log('Jobs after filtering + sorting:', filteredJobs.length)
+
+    // 9. Check cache in Supabase
     const jobIds = filteredJobs.slice(0, 20).map(j => j.job_id)
     const { data: existingJobs } = await supabase
       .from('jobs')
@@ -147,32 +319,51 @@ export async function POST(request) {
     const existingJobMap = {}
     existingJobs?.forEach(j => { existingJobMap[j.job_id] = j })
 
-    // 7. Score each job
+    // 10. Score each job
     const scoredJobs = await Promise.all(
       filteredJobs.slice(0, 20).map(async (job) => {
 
-        const requiredSkills = job.job_required_skills || []
-        const experienceInfo = job.job_required_experience?.no_experience_required
-          ? 'No experience required'
-          : job.job_required_experience?.required_experience_in_months
-          ? `${Math.round(job.job_required_experience.required_experience_in_months / 12)}+ years required`
-          : 'Not specified'
-        const educationInfo = job.job_required_education?.degree_level || 'Not specified'
+        const jd = job.description || ''
+        const salaryStr = job.detected_extensions?.salary || ''
+        const scheduleType = job.detected_extensions?.schedule_type || null
+        const isRemote = job.detected_extensions?.work_from_home || false
+        const postedAt = job.detected_extensions?.posted_at || ''
+        const applyUrl = job.apply_options?.[0]?.link || job.share_link || ''
+        const logo = job.thumbnail || null
+        const publisher = job.apply_options?.[0]?.title || ''
+        const qualifications = job.job_highlights?.find(h => h.title === 'Qualifications')?.items || []
+        const responsibilities = job.job_highlights?.find(h => h.title === 'Responsibilities')?.items || []
+
+        // Salary — parse from SerpAPI string first
+        let { min: salaryMin, max: salaryMax } = parseSalaryString(salaryStr)
+
+        // If still null — extract from JD using Claude
+        if (!salaryMin && jd) {
+          const extracted = await extractSalaryFromJD(jd)
+          salaryMin = extracted.salary_min || null
+          salaryMax = extracted.salary_max || null
+        }
+
+        // Job type — use SerpAPI or extract from JD
+        let jobType = scheduleType
+        if (!jobType && jd) {
+          jobType = await extractJobTypeFromJD(jd)
+        }
+        jobType = jobType || 'Full-time'
+
+        const convertedSalary = formatSalary(salaryMin, salaryMax, userCurrency, exchangeRate)
 
         if (existingJobMap[job.job_id]) {
           const cached = existingJobMap[job.job_id]
-          const convertedSalary = job.job_min_salary
-            ? formatSalary(job.job_min_salary, job.job_max_salary, userCurrency, exchangeRate)
-            : cached.salary
           return {
             id:          cached.job_id,
             title:       cached.title,
             company:     cached.company,
-            logo:        job.employer_logo || null,
-            publisher:   job.job_publisher || '',
+            logo,
+            publisher,
             location:    cached.location,
-            salary:      convertedSalary,
-            type:        cached.job_type,
+            salary:      convertedSalary !== 'Not listed' ? convertedSalary : cached.salary,
+            type:        jobType,
             url:         cached.url,
             description: cached.description,
             scores:      cached.scores || {},
@@ -181,7 +372,8 @@ export async function POST(request) {
             strengths:   Array.isArray(cached.strengths) ? cached.strengths : [],
             gaps:        Array.isArray(cached.gaps) ? cached.gaps : [],
             topPick:     cached.top_pick,
-            isRemote:    job.job_is_remote || false,
+            isRemote,
+            posted:      postedAt,
           }
         }
 
@@ -189,86 +381,65 @@ export async function POST(request) {
           const message = await anthropic.messages.create({
             model: 'claude-sonnet-4-6',
             max_tokens: 500,
-            messages: [
-              {
-                role: 'user',
-                content: `You are a career coach scoring a job match. Score each category 1-10. Return ONLY valid JSON with no markdown, no backticks, no explanation.
+            messages: [{
+              role: 'user',
+              content: `You are a career coach scoring a job match. Score each category 1-10. Return ONLY valid JSON, no markdown, no backticks.
 
 CANDIDATE:
 - Target role: ${profile.target_role}
 - Seniority: ${profile.seniority}
 - Skills: ${(profile.skills || []).join(', ')}
 - Experience: ${(profile.experience || []).map(e => `${e.title} at ${e.company}`).join(', ')}
-- Industries of interest: ${(profile.industries || []).join(', ')}
-- Location preference: ${profile.location}
+- Industries: ${(profile.industries || []).join(', ')}
+- Location: ${profile.location}
 - Work arrangement: ${profile.work_arrangement}
 - Company size preference: ${profile.company_size}
 
 JOB:
-- Title: ${job.job_title}
-- Company: ${job.employer_name}
-- Location: ${job.job_city || 'Remote'}, ${job.job_country || ''}
-- Remote: ${job.job_is_remote ? 'Yes' : 'No'}
-- Type: ${job.job_employment_type || 'Full-time'}
-- Required skills: ${requiredSkills.length > 0 ? requiredSkills.join(', ') : 'See description'}
-- Required experience: ${experienceInfo}
-- Required education: ${educationInfo}
-- Qualifications: ${(job.job_highlights?.Qualifications || []).slice(0, 5).join(' | ')}
-- Description: ${(job.job_description || '').slice(0, 500)}
+- Title: ${job.title}
+- Company: ${job.company_name}
+- Location: ${job.location}
+- Remote: ${isRemote ? 'Yes' : 'No'}
+- Type: ${jobType}
+- Salary: ${convertedSalary}
+- Qualifications: ${qualifications.slice(0, 5).join(' | ')}
+- Responsibilities: ${responsibilities.slice(0, 3).join(' | ')}
+- Description: ${jd.slice(0, 500)}
 
-RUBRIC — score each 1 to 10:
-1. title (25%): Does job title and seniority match candidate target? Exact match=10, adjacent=7, different function=2
-2. skills (30%): Compare candidate skills against required skills. What % does candidate have? 100%=10, 70%=7, 40%=4, 20%=2
-3. experience (25%): Does candidate meet required experience? Met=9-10, close=6-8, under=3-5, far off=1-2
-4. location (10%): Candidate wants "${profile.work_arrangement}" in "${profile.location}". Job remote: ${job.job_is_remote}. Match=10, partial=6, mismatch=2
-5. culture (10%): Does company size and type match preference? Match=10, one tier off=6, two tiers off=3
+RUBRIC:
+1. title (25%): Exact=10, adjacent/similar=7, different function=2
+2. skills (30%): % of required skills candidate has. 100%=10, 70%=7, 40%=4, 20%=2
+3. experience (25%): Met=9-10, close=6-8, under=3-5, far=1-2
+4. location (10%): "${profile.work_arrangement}" in "${profile.location}". Match=10, partial=6, mismatch=2
+5. culture (10%): Company size match. Match=10, one tier off=6, two tiers=3
 
-For gaps: list ONLY concrete missing requirements from JD not in candidate profile.
-For strengths: list specific matches between candidate and JD requirements.
+Gaps: ONLY concrete missing requirements from JD not in candidate profile.
+Strengths: specific matches between candidate and JD.
 
-{
-  "title": 8,
-  "skills": 7,
-  "experience": 9,
-  "location": 10,
-  "culture": 7,
-  "reason": "One sentence summary of fit",
-  "strengths": ["Candidate has X which matches required skill Y"],
-  "gaps": ["Missing: X from required skills", "Requires Y degree not listed in profile"]
-}`,
-              },
-            ],
+{"title":8,"skills":7,"experience":9,"location":10,"culture":7,"reason":"One sentence","strengths":["match"],"gaps":["gap"]}`
+            }]
           })
 
           const text = message.content[0].text
             .trim()
-            .replace(/^```json\s*/i, '')
-            .replace(/^```\s*/i, '')
-            .replace(/```\s*$/i, '')
-            .trim()
+            .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim()
 
           const cats = JSON.parse(text)
           const finalScore = calcScore(cats)
 
-          const convertedSalary = job.job_min_salary
-            ? formatSalary(job.job_min_salary, job.job_max_salary, userCurrency, exchangeRate)
-            : job.job_salary_period
-            ? `${userCurrency} ${Math.round((job.job_salary_min || 0) * exchangeRate).toLocaleString()}–${Math.round((job.job_salary_max || 0) * exchangeRate).toLocaleString()} / ${job.job_salary_period}`
-            : 'Not listed'
-
           return {
             id:          job.job_id,
-            title:       job.job_title,
-            company:     job.employer_name,
-            logo:        job.employer_logo || null,
-            publisher:   job.job_publisher || '',
-            location:    job.job_city ? `${job.job_city}, ${job.job_country}` : 'Remote',
+            title:       job.title,
+            company:     job.company_name,
+            logo,
+            publisher,
+            location:    job.location,
             salary:      convertedSalary,
-            type:        job.job_employment_type || 'Full-time',
-            url:         job.job_apply_link,
-            posted:      job.job_posted_at_datetime_utc,
-            description: (job.job_description || '').slice(0, 300),
-            isRemote:    job.job_is_remote || false,
+            type:        jobType,
+            url:         applyUrl,
+            posted:      postedAt,
+            description: jd.slice(0, 300),
+            isRemote,
             scores: {
               title:      cats.title,
               skills:     cats.skills,
@@ -283,18 +454,29 @@ For strengths: list specific matches between candidate and JD requirements.
             topPick:   finalScore >= 8.0,
           }
         } catch (err) {
-          console.error('Scoring error for job:', job.job_title, err)
+          console.error('Scoring error:', job.title, err)
           return null
         }
       })
     )
 
-    // 8. Filter nulls, sort by score
+    // 11. Filter nulls — sort by score but LinkedIn/Glassdoor float to top
     const validJobs = scoredJobs
       .filter(Boolean)
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => {
+        const aPriority = getSourcePriority(
+          filteredJobs.find(j => j.job_id === a.id)?.apply_options || []
+        )
+        const bPriority = getSourcePriority(
+          filteredJobs.find(j => j.job_id === b.id)?.apply_options || []
+        )
+        // Weight: 60% score, 40% source priority
+        const aFinal = (a.score * 0.6) + (aPriority / 100 * 4)
+        const bFinal = (b.score * 0.6) + (bPriority / 100 * 4)
+        return bFinal - aFinal
+      })
 
-    // 9. Save new jobs to Supabase
+    // 12. Save new jobs to Supabase
     const newJobs = validJobs.filter(j => !existingJobMap[j.id])
     if (newJobs.length > 0) {
       await supabase.from('jobs').upsert(
