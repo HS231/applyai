@@ -1,97 +1,97 @@
-/* Import Google Font */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600&family=DM+Sans:wght@300;400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --purple:       #534AB7;
-  --purple-dark:  #3C3489;
-  --purple-light: #EEEDFE;
-  --teal:         #1D9E75;
-  --teal-light:   #E1F5EE;
+  --accent:       #6b5ce7;
+  --accent-dark:  #5a4dd6;
+  --accent-light: #ede9fd;
+  --purple:       #6b5ce7;
+  --purple-dark:  #5a4dd6;
+  --purple-light: #ede9fd;
+  --teal:         #4ecdc4;
+  --teal-light:   #e0f7f6;
   --amber:        #BA7517;
   --amber-light:  #FAEEDA;
-  --green:        #27500A;
-  --green-light:  #EAF3DE;
-  --text-pri:     #1A1A18;
-  --text-sec:     #5F5E5A;
-  --text-hint:    #888780;
-  --border:       #D3D1C7;
-  --bg-page:      #F8F7F4;
-  --bg-card:      #FFFFFF;
-  --bg-secondary: #F1EFE8;
+  --green:        #00c47a;
+  --green-light:  #e0f9ef;
+  --text-pri:     #1a1a2e;
+  --text-sec:     #4a4a5a;
+  --text-hint:    #8a8a9a;
+  --border:       rgba(255,255,255,0.3);
+  --bg-page:      transparent;
+  --bg-card:      rgba(255,255,255,0.95);
+  --bg-secondary: rgba(255,255,255,0.6);
+  --bg-input:     rgba(255,255,255,0.7);
+  --shadow-sm:    0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow:       0 2px 8px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.08);
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg-page);
+  font-family: 'Inter', 'DM Sans', sans-serif;
+  background: linear-gradient(135deg, #c8b8f8 0%, #a78bfa 25%, #7c6be8 45%, #4ecdc4 75%, #81e6d9 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
   color: var(--text-pri);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Shared input styles */
 .input {
   width: 100%;
-  background: var(--bg-secondary);
+  background: var(--bg-input);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 14px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   color: var(--text-pri);
   outline: none;
   transition: border-color 0.2s;
 }
-.input:focus {
-  border-color: var(--purple);
-}
+.input:focus { border-color: var(--accent); }
 
-/* Primary button */
 .btn-primary {
-  background: var(--purple);
+  background: var(--accent);
   color: white;
   border: none;
-  border-radius: 10px;
+  border-radius: 100px;
   padding: 12px 24px;
   font-size: 14px;
   font-weight: 500;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: background 0.15s;
   width: 100%;
 }
-.btn-primary:hover  { opacity: 0.88; }
+.btn-primary:hover { background: var(--accent-dark); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Ghost button */
 .btn-ghost {
-  background: transparent;
+  background: rgba(255,255,255,0.2);
   color: var(--text-sec);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 100px;
   padding: 11px 20px;
   font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   cursor: pointer;
   transition: background 0.15s;
 }
-.btn-ghost:hover { background: var(--bg-secondary); }
+.btn-ghost:hover { background: rgba(255,255,255,0.35); }
 
-/* Card */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
 }
 
-/* Badge */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -101,56 +101,52 @@ body {
   border-radius: 20px;
   white-space: nowrap;
 }
-.badge-purple { background: var(--purple-light); color: var(--purple-dark); }
-.badge-green  { background: var(--green-light);  color: var(--green); }
+.badge-purple { background: var(--accent-light); color: var(--accent-dark); }
+.badge-green  { background: var(--green-light);  color: #007a4a; }
 .badge-amber  { background: var(--amber-light);  color: var(--amber); }
 
-/* Choice button (onboarding selections) */
 .choice-btn {
   padding: 11px 14px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: var(--bg-card);
+  background: rgba(255,255,255,0.5);
   font-size: 13px;
   color: var(--text-sec);
   cursor: pointer;
   text-align: left;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   transition: all 0.15s;
   width: 100%;
 }
-.choice-btn:hover   { border-color: var(--purple); background: #EEEDFE22; }
-.choice-btn.selected { border-color: var(--purple); background: var(--purple-light); color: var(--purple-dark); font-weight: 500; }
+.choice-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+.choice-btn.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent-dark); font-weight: 500; }
 
-/* Skill chip */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
   border-radius: 20px;
-  background: var(--purple-light);
-  color: var(--purple-dark);
+  background: var(--accent-light);
+  color: var(--accent-dark);
   font-size: 12px;
   font-weight: 500;
   margin: 3px;
 }
 
-/* Progress bar */
 .progress-track {
   height: 4px;
   border-radius: 2px;
-  background: var(--border);
+  background: rgba(255,255,255,0.3);
   overflow: hidden;
 }
 .progress-fill {
   height: 100%;
   border-radius: 2px;
-  background: var(--purple);
+  background: var(--accent);
   transition: width 0.4s ease;
 }
 
-/* Field label */
 .field-label {
   font-size: 11px;
   font-weight: 500;

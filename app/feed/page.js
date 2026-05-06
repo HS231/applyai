@@ -88,8 +88,7 @@ export default function FeedPage() {
         justifyContent: 'space-between',
       }}>
         <div>
-          <span style={{ fontSize: 18, fontWeight: 500 }}>apply</span>
-          <span style={{ fontSize: 18, fontWeight: 500, color: 'var(--purple)' }}>AI</span>
+          <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Ubuntu, sans-serif' }}>🐦 Robin</span>
         </div>
         <div style={{ display: 'flex', gap: 20, fontSize: 13, color: 'var(--text-sec)' }}>
           <span style={{ color: 'var(--purple)', fontWeight: 500 }}>Job feed</span>
@@ -109,12 +108,12 @@ export default function FeedPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 16px', fontSize: 22,
             }}>
-              🔍
+            🐦  
             </div>
             <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 6 }}>
               {loadingLabel}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text-hint)' }}>
+            <div style={{ fontSize: 12, color: 'rgba(26,26,46,0.7)' }}>
               This takes about 20–30 seconds - Hang Tight...
             </div>
           </div>
@@ -369,8 +368,8 @@ export default function FeedPage() {
                       </div>
                       {job.score >= 7 ? (
                         <a
-                          href={job.url}
-                          target="_blank"
+                          href={`/apply/${encodeURIComponent(job.id)}`}
+                          
                           rel="noopener noreferrer"
                           style={{
                             background: 'var(--purple)',

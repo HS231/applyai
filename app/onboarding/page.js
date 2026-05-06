@@ -45,8 +45,7 @@ export default function OnboardingPage() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <span style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-pri)' }}>apply</span>
-          <span style={{ fontSize: 22, fontWeight: 500, color: 'var(--purple)' }}>AI</span>
+          <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Ubuntu, sans-serif' }}>🐦 Robin</span>
         </div>
 
         {/* Step tracker */}

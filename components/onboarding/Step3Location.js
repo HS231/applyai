@@ -36,7 +36,7 @@ const CURRENCIES = [
   { code: 'CLP', label: 'CLP — Chilean Peso' },
   { code: 'CNY', label: 'CNY — Chinese Yuan' },
   { code: 'COP', label: 'COP — Colombian Peso' },
-  { code: 'CRC', label: 'CRC — Costa Rican Colón' },
+  { code: 'CRC', label: 'CRC — Costa Rican Colon' },
   { code: 'CUP', label: 'CUP — Cuban Peso' },
   { code: 'CVE', label: 'CVE — Cape Verdean Escudo' },
   { code: 'CZK', label: 'CZK — Czech Koruna' },
@@ -68,7 +68,7 @@ const CURRENCIES = [
   { code: 'INR', label: 'INR — Indian Rupee' },
   { code: 'IQD', label: 'IQD — Iraqi Dinar' },
   { code: 'IRR', label: 'IRR — Iranian Rial' },
-  { code: 'ISK', label: 'ISK — Icelandic Króna' },
+  { code: 'ISK', label: 'ISK — Icelandic Krona' },
   { code: 'JMD', label: 'JMD — Jamaican Dollar' },
   { code: 'JOD', label: 'JOD — Jordanian Dinar' },
   { code: 'JPY', label: 'JPY — Japanese Yen' },
@@ -92,7 +92,7 @@ const CURRENCIES = [
   { code: 'MGA', label: 'MGA — Malagasy Ariary' },
   { code: 'MKD', label: 'MKD — Macedonian Denar' },
   { code: 'MMK', label: 'MMK — Myanmar Kyat' },
-  { code: 'MNT', label: 'MNT — Mongolian Tögrög' },
+  { code: 'MNT', label: 'MNT — Mongolian Togrog' },
   { code: 'MOP', label: 'MOP — Macanese Pataca' },
   { code: 'MRU', label: 'MRU — Mauritanian Ouguiya' },
   { code: 'MUR', label: 'MUR — Mauritian Rupee' },
@@ -103,7 +103,7 @@ const CURRENCIES = [
   { code: 'MZN', label: 'MZN — Mozambican Metical' },
   { code: 'NAD', label: 'NAD — Namibian Dollar' },
   { code: 'NGN', label: 'NGN — Nigerian Naira' },
-  { code: 'NIO', label: 'NIO — Nicaraguan Córdoba' },
+  { code: 'NIO', label: 'NIO — Nicaraguan Cordoba' },
   { code: 'NOK', label: 'NOK — Norwegian Krone' },
   { code: 'NPR', label: 'NPR — Nepalese Rupee' },
   { code: 'NZD', label: 'NZD — New Zealand Dollar' },
@@ -130,17 +130,17 @@ const CURRENCIES = [
   { code: 'SLL', label: 'SLL — Sierra Leonean Leone' },
   { code: 'SOS', label: 'SOS — Somali Shilling' },
   { code: 'SRD', label: 'SRD — Surinamese Dollar' },
-  { code: 'STN', label: 'STN — São Tomé & Príncipe Dobra' },
-  { code: 'SVC', label: 'SVC — Salvadoran Colón' },
+  { code: 'STN', label: 'STN — Sao Tome and Principe Dobra' },
+  { code: 'SVC', label: 'SVC — Salvadoran Colon' },
   { code: 'SYP', label: 'SYP — Syrian Pound' },
   { code: 'SZL', label: 'SZL — Swazi Lilangeni' },
   { code: 'THB', label: 'THB — Thai Baht' },
   { code: 'TJS', label: 'TJS — Tajikistani Somoni' },
   { code: 'TMT', label: 'TMT — Turkmenistani Manat' },
   { code: 'TND', label: 'TND — Tunisian Dinar' },
-  { code: 'TOP', label: 'TOP — Tongan Paʻanga' },
+  { code: 'TOP', label: 'TOP — Tongan Paanga' },
   { code: 'TRY', label: 'TRY — Turkish Lira' },
-  { code: 'TTD', label: 'TTD — Trinidad & Tobago Dollar' },
+  { code: 'TTD', label: 'TTD — Trinidad and Tobago Dollar' },
   { code: 'TWD', label: 'TWD — New Taiwan Dollar' },
   { code: 'TZS', label: 'TZS — Tanzanian Shilling' },
   { code: 'UAH', label: 'UAH — Ukrainian Hryvnia' },
@@ -148,7 +148,7 @@ const CURRENCIES = [
   { code: 'USD', label: 'USD — US Dollar' },
   { code: 'UYU', label: 'UYU — Uruguayan Peso' },
   { code: 'UZS', label: 'UZS — Uzbekistani Som' },
-  { code: 'VES', label: 'VES — Venezuelan Bolívar' },
+  { code: 'VES', label: 'VES — Venezuelan Bolivar' },
   { code: 'VND', label: 'VND — Vietnamese Dong' },
   { code: 'VUV', label: 'VUV — Vanuatu Vatu' },
   { code: 'WST', label: 'WST — Samoan Tala' },
@@ -168,14 +168,14 @@ export default function Step3Location({ profile, updateProfile, onNext, onBack }
   const [suggestions, setSuggestions] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
   const [arrangement, setArrangement] = useState(
-  profile.workArrangement
-    ? Array.isArray(profile.workArrangement)
-      ? profile.workArrangement
-      : [profile.workArrangement]
-    : ['remote']
-)
+    profile.workArrangement
+      ? Array.isArray(profile.workArrangement)
+        ? profile.workArrangement
+        : [profile.workArrangement]
+      : ['remote']
+  )
   const [currency, setCurrency] = useState(profile.currency || 'CAD')
-  const [salary, setSalary] = useState(profile.salaryMin || 0)
+  const [salaryMin, setSalaryMin] = useState(profile.salaryMin || '')
   const debounceRef = useRef(null)
 
   useEffect(() => {
@@ -209,7 +209,7 @@ export default function Step3Location({ profile, updateProfile, onNext, onBack }
     updateProfile({
       location: selected || query,
       workArrangement: Array.isArray(arrangement) ? arrangement.join(', ') : arrangement,
-      salaryMin: salary,
+      salaryMin: Number(salaryMin) || 0,
       currency,
     })
     onNext()
@@ -276,20 +276,20 @@ export default function Step3Location({ profile, updateProfile, onNext, onBack }
         <label className="field-label">Work arrangement</label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
           {ARRANGEMENTS.map(opt => (
-  <button
-    key={opt}
-    className={`choice-btn ${arrangement.includes(opt.toLowerCase()) ? 'selected' : ''}`}
-    onClick={() => {
-      const val = opt.toLowerCase()
-      setArrangement(prev =>
-        prev.includes(val) ? prev.filter(a => a !== val) : [...prev, val]
-      )
-    }}
-    style={{ textAlign: 'center' }}
-  >
-    {opt}
-  </button>
-))}
+            <button
+              key={opt}
+              className={`choice-btn ${arrangement.includes(opt.toLowerCase()) ? 'selected' : ''}`}
+              onClick={() => {
+                const val = opt.toLowerCase()
+                setArrangement(prev =>
+                  prev.includes(val) ? prev.filter(a => a !== val) : [...prev, val]
+                )
+              }}
+              style={{ textAlign: 'center' }}
+            >
+              {opt}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -313,33 +313,44 @@ export default function Step3Location({ profile, updateProfile, onNext, onBack }
         </select>
       </div>
 
-      {/* Salary slider */}
+      {/* Minimum salary — number input */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <label className="field-label" style={{ margin: 0 }}>Minimum salary</label>
-          <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-pri)' }}>
-            {currency} {Number(salary).toLocaleString()}
+        <label className="field-label">Minimum salary (annual)</label>
+        <div style={{ position: 'relative' }}>
+          <span style={{
+            position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+            fontSize: 13, fontWeight: 500, color: 'var(--text-sec)',
+          }}>
+            {currency}
           </span>
+          <input
+            type="number"
+            value={salaryMin}
+            onChange={e => setSalaryMin(e.target.value)}
+            placeholder="e.g. 80000"
+            min={0}
+            style={{
+              width: '100%',
+              padding: '12px 16px 12px 56px',
+              border: '1px solid var(--border)',
+              borderRadius: 10,
+              fontSize: 15,
+              fontFamily: 'inherit',
+              background: 'var(--bg-secondary)',
+              outline: 'none',
+              color: 'var(--text-pri)',
+            }}
+          />
         </div>
-        <input
-          type="range"
-          min={0}
-          max={10000000}
-          step={10000}
-          value={salary}
-          onChange={e => setSalary(Number(e.target.value))}
-          style={{ width: '100%', accentColor: 'var(--purple)' }}
-        />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-hint)', marginTop: 4 }}>
-          <span>0</span>
-          <span>10,000,000+</span>
+        <div style={{ fontSize: 11, color: 'var(--text-hint)', marginTop: 5 }}>
+          Leave blank to see all salaries
         </div>
       </div>
 
       {/* Buttons */}
       <div style={{ display: 'flex', gap: 10 }}>
         <button className="btn-ghost" onClick={onBack} style={{ width: 'auto', padding: '0 20px' }}>
-          ← Back
+          Back
         </button>
         <button className="btn-primary" onClick={handleNext}>
           Continue →

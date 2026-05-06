@@ -122,7 +122,7 @@ export default function StepDone({ profile }) {
             ['Seniority', profile.seniority || '—'],
             ['Location', profile.location || '—'],
             ['Arrangement', profile.workArrangement || '—'],
-            ['Min salary', profile.salaryMin ? `$${Number(profile.salaryMin).toLocaleString()} ${profile.currency}` : '—'],
+            ['Min salary', profile.salaryMin ? `${Number(profile.salaryMin).toLocaleString()} ${profile.currency}` : '—'],
             ['Digest', profile.digestFrequency || '—'],
           ].map(([label, value]) => (
             <div key={label} style={{ display: 'contents' }}>
