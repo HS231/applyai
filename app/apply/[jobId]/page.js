@@ -146,7 +146,7 @@ function buildCoverLetterHTML(text, name, resumeText) {
     '<div class="contact-info">' + contactLine + '</div></div>' +
     '<p class="date">' + today + '</p>' +
     body +
-    '<div class="sig">' + (name || '') + '</div>'
+    ''
     '</body></html>'
 }
 
