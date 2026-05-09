@@ -12,8 +12,8 @@ function buildResumeHTML(resumeText) {
     'h2{font-size:10pt;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #000;padding-bottom:1px;margin:7px 0 3px;letter-spacing:0.5px}',
     '.employer{font-weight:bold;font-style:normal;font-size:10pt;margin:4px 0 0}',
     '.role-line{display:flex;justify-content:space-between;align-items:baseline;margin:1px 0 2px}',
-    '.role-title{font-weight:normal;font-style:normal;font-size:10pt}',
-    '.role-date{font-size:10pt;font-weight:normal;font-style:normal}',
+    '.role-title{font-weight:bold;font-style:normal;font-size:10pt}',
+    '.role-date{font-size:10pt;font-weight:bold;font-style:normal}',
     'ul{margin:1px 0 3px 0;padding:0;list-style:none}',
     'li{font-size:10pt;line-height:1.35;text-align:justify;padding-left:12px;position:relative;margin-bottom:1px}',
     'li:before{content:"\\2022";position:absolute;left:2px}',
@@ -51,7 +51,7 @@ function buildResumeHTML(resumeText) {
   const lines = rawLines.slice(startIdx)
   const SECTION_HEADERS = [
     'SUMMARY', 'EDUCATION', 'SKILLS', 'EXPERIENCE',
-    'COMMUNITY AND LEADERSHIP', 'LEADERSHIP AND COMMUNITY',
+    'ADDITIONAL INTERESTS', 'COMMUNITY AND LEADERSHIP', 'LEADERSHIP AND COMMUNITY',
     'PROFESSIONAL EXPERIENCE', 'WORK HISTORY',
     'ACHIEVEMENTS', 'CERTIFICATIONS', 'PROJECTS',
     'INTERESTS', 'ADDITIONAL', 'PROFILE',
@@ -71,6 +71,12 @@ function buildResumeHTML(resumeText) {
   const H2_OPEN = '<h2>'
   const H2_CLOSE = '</h2>'
 
+  function applyBold(text) {
+    return text.replace(/\*\*(.+?)\*\*/g, function(match, inner) {
+      return '<strong>' + inner + '</strong>'
+    })
+  }
+
   for (const line of lines) {
     const t = line.trim()
     if (!t) {
@@ -84,6 +90,7 @@ function buildResumeHTML(resumeText) {
     const isBullet = t.startsWith('-') || t.startsWith('\u2022') || t.startsWith('\u00b7')
     const hasPipe = t.includes(' | ')
     const hasYear = /\d{4}/.test(t)
+    const hasBold = t.includes('**')
 
     if (inList && !isBullet) { html += UL_CLOSE; inList = false }
 
@@ -95,23 +102,28 @@ function buildResumeHTML(resumeText) {
       html += '<p class="skills-line">' + t + '</p>'
     } else if (isBullet) {
       if (!inList) { html += UL_OPEN; inList = true }
-      html += LI_OPEN + t.replace(/^[-\u2022\u00b7]\s*/, '') + LI_CLOSE
-    } else if (hasPipe) {
-      const parts = t.split('|').map(function(s) { return s.trim() })
+      html += LI_OPEN + applyBold(t.replace(/^[-\u2022\u00b7]\s*/, '')) + LI_CLOSE
+    } else if (hasPipe || hasBold) {
+      const cleaned = applyBold(t)
+      const parts = t.replace(/\*\*/g, '').split('|').map(function(s) { return s.trim() })
       if (hasYear) {
-        html += '<div class="role-line"><span class="role-title">' + parts[0] + '</span><span class="role-date">' + (parts[1] || '') + '</span></div>'
+        // Role title line — bold
+        const leftBold = applyBold(parts[0] || '')
+        const right = parts[1] || ''
+        html += '<div class="role-line"><span class="role-title">' + leftBold + '</span><span class="role-date">' + right + '</span></div>'
       } else {
-        html += '<div class="employer">' + parts[0] + (parts[1] ? ', ' + parts[1] : '') + '</div>'
+        // Employer line
+        html += '<div class="employer">' + applyBold(parts[0]) + (parts[1] ? ', ' + parts[1] : '') + '</div>'
       }
     } else if (hasYear && (currentSection === 'EXPERIENCE' || currentSection === 'PROFESSIONAL EXPERIENCE' || currentSection === 'PROFESSIONAL EXPERIENCE AND ENTREPRENEURSHIP' || currentSection === 'EDUCATION')) {
       const match = t.match(/^(.+?)\s{2,}(\d{4}.*)$/) || t.match(/^(.+),\s*(\d{4}.*)$/)
       if (match) {
-        html += '<div class="role-line"><span class="role-title">' + match[1].trim() + '</span><span class="role-date">' + match[2].trim() + '</span></div>'
+        html += '<div class="role-line"><span class="role-title">' + applyBold(match[1].trim()) + '</span><span class="role-date">' + match[2].trim() + '</span></div>'
       } else {
-        html += '<div class="employer">' + t + '</div>'
+        html += '<div class="employer">' + applyBold(t) + '</div>'
       }
     } else {
-      html += '<p>' + t + '</p>'
+      html += '<p>' + applyBold(t) + '</p>'
     }
   }
   if (inList) html += UL_CLOSE
@@ -230,8 +242,7 @@ export default function ApplyPage() {
       const body = win.document.body
       const pageH = win.screen.height
       if (body.scrollHeight > pageH) {
-        removeSectionByKeyword(win, 'COMMUNITY')
-        removeSectionByKeyword(win, 'LEADERSHIP')
+        removeSectionByKeyword(win, 'ADDITIONAL INTERESTS')
       }
       if (body.scrollHeight > pageH) {
         removeSectionByKeyword(win, 'SKILLS')

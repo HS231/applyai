@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// Detect vertical from job title and description
 async function detectVertical(jobTitle, jobDescription) {
   try {
     const msg = await anthropic.messages.create({
@@ -33,7 +32,6 @@ Examples:
   }
 }
 
-// Fetch template from Supabase — falls back to consulting template if vertical not found
 async function getResumeTemplate(vertical) {
   try {
     const { data } = await supabase
@@ -44,7 +42,6 @@ async function getResumeTemplate(vertical) {
 
     if (data) return data
 
-    // Fall back to consulting template
     const { data: fallback } = await supabase
       .from('resume_templates')
       .select('resume_text, vertical')
@@ -67,11 +64,8 @@ export async function POST(request) {
 
     const resumeText = profile.resume_text || ''
 
-    // Detect vertical and fetch template in parallel
-    const [vertical, template] = await Promise.all([
-      detectVertical(job.title, job.description),
-      detectVertical(job.title, job.description).then(v => getResumeTemplate(v))
-    ])
+    const vertical = await detectVertical(job.title, job.description)
+    const template = await getResumeTemplate(vertical)
 
     console.log('Detected vertical:', vertical)
     console.log('Template found:', template?.vertical || 'none')
@@ -111,21 +105,34 @@ ${templateSection}
 STRICT RULES:
 1. First line: candidate full name only
 2. Second line: phone | email | linkedin (extract from resume text)
-3. Use EXACTLY these section headers in this order: SUMMARY, EDUCATION, SKILLS, EXPERIENCE, COMMUNITY AND LEADERSHIP
-4. For each role format EXACTLY as:
+3. Use EXACTLY these section headers in this order: SUMMARY, EDUCATION, EXPERIENCE, SKILLS, ADDITIONAL INTERESTS
+4. For each role under EXPERIENCE format EXACTLY as:
    Company Name | City, Country
-   Job Title | YEAR - YEAR
+   **Job Title | YEAR - YEAR**
+   - bullet point starting with action verb
    - bullet point
-5. Bullet points MUST follow this style: Action verb + what you did + quantified result + impact
-   Example: "Led a team of 3 to develop market entry strategy for Southeast Asia; delivered recommendations in 6 weeks that influenced USD 2Mn investment decision"
-6. Each bullet must be specific, quantified where possible, and outcome-focused
-7. SKILLS: comma separated on one line
-8. SUMMARY: 2-3 lines tailored to this specific role
-9. One page maximum, 3-4 bullets per role
-10. Use ONLY actual experience from the resume — never fabricate
-11. Mirror JD language and keywords throughout
-12. No markdown, no asterisks, no em dashes
-13. No placeholders like [Phone] or [LinkedIn]`
+5. For each entry under EDUCATION format EXACTLY as:
+   Institution Name | City, Country
+   Degree | YEAR - YEAR
+   - achievement or award bullet if present in resume (GPA, rankings, competitions, awards)
+   Only include education bullets if there is actual content from the resume
+6. ADDITIONAL INTERESTS section: extract community involvement, leadership, volunteering, extracurriculars, hobbies, certifications from the resume. Use bullets where content exists. If nothing found, omit the section.
+7. Bullet points MUST follow this style: Action verb + what you did + quantified result + impact
+   Example: "Led a team of 3 to develop market entry strategy; delivered recommendations in 6 weeks that influenced USD 2Mn investment decision"
+8. Each bullet must be specific, quantified where possible, and outcome-focused
+9. SKILLS: comma separated on one line, no bullets
+10. SUMMARY: 2-3 lines tailored to this specific role at this company
+11. ONE PAGE MAXIMUM — ruthlessly concise:
+    - Maximum 3-4 bullets per role
+    - Maximum 3 roles if experience is extensive
+    - Each bullet maximum 20 words
+    - Summary maximum 2 lines
+    - Cut least relevant bullets first if over one page
+12. Use ONLY actual experience from the resume — never fabricate
+13. Mirror JD language and keywords throughout
+14. No markdown except ** for bold job titles as shown above
+15. No em dashes anywhere
+16. No placeholders like [Phone] or [LinkedIn]`
         }]
       }),
 
