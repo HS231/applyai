@@ -6,31 +6,31 @@ import { useParams, useRouter } from 'next/navigation'
 function buildResumeHTML(resumeText) {
   const css = [
     '*{box-sizing:border-box;margin:0;padding:0}',
-    'body{font-family:Arial,sans-serif;font-size:9pt;line-height:1.35;color:#000;max-width:750px;margin:0 auto;padding:20px 44px}',
-    'h1{font-size:13pt;font-weight:bold;margin:0 0 2px}',
-    '.contact{font-size:8.5pt;color:#000;margin-bottom:6px;padding-bottom:5px;border-bottom:1.5px solid #000}',
-    'h2{font-size:8.5pt;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #000;padding-bottom:1px;margin:7px 0 3px;letter-spacing:0.5px}',
-    '.employer{font-weight:bold;font-style:italic;font-size:8.5pt;margin:4px 0 0}',
+    'body{font-family:Arial,sans-serif;font-size:10.5pt;line-height:1.35;color:#000;max-width:750px;margin:0 auto;padding:20px 44px}',
+    'h1{font-size:14.5pt;font-weight:bold;margin:0 0 2px}',
+    '.contact{font-size:10pt;color:#000;margin-bottom:6px;padding-bottom:5px;border-bottom:1.5px solid #000}',
+    'h2{font-size:10pt;font-weight:bold;text-transform:uppercase;border-bottom:1px solid #000;padding-bottom:1px;margin:7px 0 3px;letter-spacing:0.5px}',
+    '.employer{font-weight:bold;font-style:normal;font-size:10pt;margin:4px 0 0}',
     '.role-line{display:flex;justify-content:space-between;align-items:baseline;margin:1px 0 2px}',
-    '.role-title{font-weight:bold;font-style:italic;font-size:8.5pt}',
-    '.role-date{font-size:8.5pt;font-weight:normal;font-style:normal}',
+    '.role-title{font-weight:normal;font-style:normal;font-size:10pt}',
+    '.role-date{font-size:10pt;font-weight:normal;font-style:normal}',
     'ul{margin:1px 0 3px 0;padding:0;list-style:none}',
-    'li{font-size:8.5pt;line-height:1.35;text-align:justify;padding-left:12px;position:relative;margin-bottom:1px}',
+    'li{font-size:10pt;line-height:1.35;text-align:justify;padding-left:12px;position:relative;margin-bottom:1px}',
     'li:before{content:"\\2022";position:absolute;left:2px}',
-    '.skills-line{font-size:8.5pt;margin:2px 0 3px;line-height:1.35}',
-    'p{margin:2px 0;font-size:8.5pt;line-height:1.35;text-align:justify}',
+    '.skills-line{font-size:10pt;margin:2px 0 3px;line-height:1.35}',
+    'p{margin:2px 0;font-size:10pt;line-height:1.35;text-align:justify}',
     '@media print{',
     'html,body{height:100%}',
-    'body{padding:12px 32px;font-size:8pt}',
-    'h1{font-size:12pt;margin-bottom:1px}',
-    '.contact{font-size:7.5pt;margin-bottom:4px;padding-bottom:4px}',
-    'h2{font-size:7.5pt;margin:5px 0 2px;padding-bottom:1px}',
-    '.employer{font-size:7.5pt;margin:3px 0 0}',
-    '.role-title{font-size:7.5pt}',
-    '.role-date{font-size:7.5pt}',
-    'li{font-size:7.5pt;line-height:1.3;margin-bottom:0}',
-    '.skills-line{font-size:7.5pt;margin:1px 0 2px}',
-    'p{font-size:7.5pt;line-height:1.3;margin:1px 0}',
+    'body{padding:12px 32px;font-size:9.5pt}',
+    'h1{font-size:13pt;margin-bottom:1px}',
+    '.contact{font-size:9pt;margin-bottom:4px;padding-bottom:4px}',
+    'h2{font-size:9pt;margin:5px 0 2px;padding-bottom:1px}',
+    '.employer{font-size:9pt;margin:3px 0 0}',
+    '.role-title{font-size:9pt}',
+    '.role-date{font-size:9pt}',
+    'li{font-size:9pt;line-height:1.3;margin-bottom:0}',
+    '.skills-line{font-size:9pt;margin:1px 0 2px}',
+    'p{font-size:9pt;line-height:1.3;margin:1px 0}',
     'ul{margin:1px 0 2px 0}',
     '@page{margin:0.3cm;size:letter}',
     '}',
@@ -54,7 +54,9 @@ function buildResumeHTML(resumeText) {
     'COMMUNITY AND LEADERSHIP', 'LEADERSHIP AND COMMUNITY',
     'PROFESSIONAL EXPERIENCE', 'WORK HISTORY',
     'ACHIEVEMENTS', 'CERTIFICATIONS', 'PROJECTS',
-    'INTERESTS', 'ADDITIONAL', 'PROFILE'
+    'INTERESTS', 'ADDITIONAL', 'PROFILE',
+    'PROFESSIONAL EXPERIENCE AND ENTREPRENEURSHIP',
+    'ADDITIONAL VOLUNTEER EXPERIENCE AND INTERESTS'
   ]
 
   let html = ''
@@ -101,7 +103,7 @@ function buildResumeHTML(resumeText) {
       } else {
         html += '<div class="employer">' + parts[0] + (parts[1] ? ', ' + parts[1] : '') + '</div>'
       }
-    } else if (hasYear && (currentSection === 'EXPERIENCE' || currentSection === 'PROFESSIONAL EXPERIENCE' || currentSection === 'EDUCATION')) {
+    } else if (hasYear && (currentSection === 'EXPERIENCE' || currentSection === 'PROFESSIONAL EXPERIENCE' || currentSection === 'PROFESSIONAL EXPERIENCE AND ENTREPRENEURSHIP' || currentSection === 'EDUCATION')) {
       const match = t.match(/^(.+?)\s{2,}(\d{4}.*)$/) || t.match(/^(.+),\s*(\d{4}.*)$/)
       if (match) {
         html += '<div class="role-line"><span class="role-title">' + match[1].trim() + '</span><span class="role-date">' + match[2].trim() + '</span></div>'
@@ -125,14 +127,12 @@ function buildCoverLetterHTML(text, name, resumeText) {
   const contactLine = lines[1] ? lines[1].trim() : ''
 
   const css = [
-    'body{font-family:Arial,sans-serif;font-size:10pt;line-height:1.6;color:#000;max-width:700px;margin:0 auto;padding:48px}',
+    'body{font-family:Arial,sans-serif;font-size:10pt;line-height:1.6;color:#000;max-width:700px;margin:0 auto;padding:48px;text-align:justify}',
     '.header{margin-bottom:20px;padding-bottom:8px;border-bottom:1px solid #000}',
     '.cl-name{font-weight:bold;font-size:11pt}',
     '.contact-info{font-size:9pt;color:#333;margin-top:2px}',
-    'body{font-family:Arial,sans-serif;font-size:10pt;line-height:1.6;color:#000;max-width:700px;margin:0 auto;padding:48px;text-align:justify}',
+    'p{margin-bottom:14px;text-align:justify}',
     '.date{margin-bottom:20px;margin-top:16px;font-size:10pt}',
-    '.sig{margin-top:32px}',
-    '.sig-name{font-weight:bold;font-size:10pt}',
     '@media print{body{padding:36px}@page{margin:0.5cm;size:letter}}',
   ].join('')
 
@@ -146,7 +146,6 @@ function buildCoverLetterHTML(text, name, resumeText) {
     '<div class="contact-info">' + contactLine + '</div></div>' +
     '<p class="date">' + today + '</p>' +
     body +
-    ''
     '</body></html>'
 }
 
@@ -308,14 +307,10 @@ export default function ApplyPage() {
               }
               <div>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>Applying to {job.company}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-sec)', marginTop: 2 }}>
-                  {job.title} · {job.location}{job.salary !== 'Not listed' ? ' · ' + job.salary : ''}
-                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-sec)', marginTop: 2 }}>{job.title} · {job.location}{job.salary !== 'Not listed' ? ' · ' + job.salary : ''}</div>
               </div>
             </div>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: sc.bg, color: sc.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600 }}>
-              {job.score}
-            </div>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: sc.bg, color: sc.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 600 }}>{job.score}</div>
           </div>
         )}
 
@@ -335,18 +330,9 @@ export default function ApplyPage() {
                   <span style={{ fontSize: 13, fontWeight: 600 }}>Tailored Resume</span>
                   <span style={{ marginLeft: 8, fontSize: 11, background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '2px 8px', borderRadius: 20, fontWeight: 500 }}>Ready to send</span>
                 </div>
-                <button
-                  onClick={function() { downloadPDF(resumeHTML) }}
-                  style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 100, padding: '6px 14px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}
-                >
-                  Download PDF
-                </button>
+                <button onClick={function() { downloadPDF(resumeHTML) }} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 100, padding: '6px 14px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Download PDF</button>
               </div>
-              <textarea
-                value={resume}
-                onChange={function(e) { setResume(e.target.value) }}
-                style={{ flex: 1, border: 'none', outline: 'none', padding: '16px', fontSize: 11, lineHeight: 1.6, fontFamily: 'Arial, sans-serif', resize: 'none', minHeight: 620, background: 'white', boxSizing: 'border-box', width: '100%' }}
-              />
+              <textarea value={resume} onChange={function(e) { setResume(e.target.value) }} style={{ flex: 1, border: 'none', outline: 'none', padding: '16px', fontSize: 11, lineHeight: 1.6, fontFamily: 'Arial, sans-serif', resize: 'none', minHeight: 620, background: 'white', boxSizing: 'border-box', width: '100%' }} />
             </div>
 
             <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: 'var(--shadow-sm)' }}>
@@ -355,18 +341,9 @@ export default function ApplyPage() {
                   <span style={{ fontSize: 13, fontWeight: 600 }}>Cover Letter</span>
                   <span style={{ marginLeft: 8, fontSize: 11, background: 'var(--accent-light)', color: 'var(--accent-dark)', padding: '2px 8px', borderRadius: 20, fontWeight: 500 }}>Generated</span>
                 </div>
-                <button
-                  onClick={function() { downloadPDF(coverHTML) }}
-                  style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 100, padding: '6px 14px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}
-                >
-                  Download PDF
-                </button>
+                <button onClick={function() { downloadPDF(coverHTML) }} style={{ background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 100, padding: '6px 14px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500 }}>Download PDF</button>
               </div>
-              <textarea
-                value={coverLetter}
-                onChange={function(e) { setCoverLetter(e.target.value) }}
-                style={{ flex: 1, border: 'none', outline: 'none', padding: '16px', fontSize: 11, lineHeight: 1.6, fontFamily: 'Arial, sans-serif', resize: 'none', minHeight: 620, background: 'white', boxSizing: 'border-box', width: '100%' }}
-              />
+              <textarea value={coverLetter} onChange={function(e) { setCoverLetter(e.target.value) }} style={{ flex: 1, border: 'none', outline: 'none', padding: '16px', fontSize: 11, lineHeight: 1.6, fontFamily: 'Arial, sans-serif', resize: 'none', minHeight: 620, background: 'white', boxSizing: 'border-box', width: '100%' }} />
             </div>
 
           </div>
