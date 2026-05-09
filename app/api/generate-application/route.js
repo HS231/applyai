@@ -1,7 +1,61 @@
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { supabase } from '@/lib/supabase'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
+// Detect vertical from job title and description
+async function detectVertical(jobTitle, jobDescription) {
+  try {
+    const msg = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 20,
+      messages: [{
+        role: 'user',
+        content: `What is the primary vertical of this job? Return ONLY one word from this list: consulting, finance, tech, marketing, sales, other
+
+Job title: ${jobTitle}
+Job description: ${(jobDescription || '').slice(0, 300)}
+
+Examples:
+- Management Consultant, Strategy Analyst, Advisory, BCG, McKinsey -> consulting
+- Financial Analyst, Investment Banking, Accounting, FP&A -> finance
+- Software Engineer, Product Manager, Data Scientist -> tech
+- Marketing Manager, Brand Manager, Growth -> marketing
+- Account Executive, Sales Manager, Business Development -> sales`
+      }]
+    })
+    const vertical = msg.content[0].text.trim().toLowerCase()
+    const valid = ['consulting', 'finance', 'tech', 'marketing', 'sales', 'other']
+    return valid.includes(vertical) ? vertical : 'other'
+  } catch {
+    return 'other'
+  }
+}
+
+// Fetch template from Supabase — falls back to consulting template if vertical not found
+async function getResumeTemplate(vertical) {
+  try {
+    const { data } = await supabase
+      .from('resume_templates')
+      .select('resume_text, vertical')
+      .eq('vertical', vertical)
+      .single()
+
+    if (data) return data
+
+    // Fall back to consulting template
+    const { data: fallback } = await supabase
+      .from('resume_templates')
+      .select('resume_text, vertical')
+      .eq('vertical', 'consulting')
+      .single()
+
+    return fallback || null
+  } catch {
+    return null
+  }
+}
 
 export async function POST(request) {
   try {
@@ -13,14 +67,28 @@ export async function POST(request) {
 
     const resumeText = profile.resume_text || ''
 
+    // Detect vertical and fetch template in parallel
+    const [vertical, template] = await Promise.all([
+      detectVertical(job.title, job.description),
+      detectVertical(job.title, job.description).then(v => getResumeTemplate(v))
+    ])
+
+    console.log('Detected vertical:', vertical)
+    console.log('Template found:', template?.vertical || 'none')
+
+    const templateSection = template
+      ? `RESUME TEMPLATE TO FOLLOW (structure, format, and bullet style only — use the USER'S actual experience, not the template person's):
+${template.resume_text}`
+      : ''
+
     const [resumeMsg, coverMsg] = await Promise.all([
 
       anthropic.messages.create({
         model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
+        max_tokens: 1200,
         messages: [{
           role: 'user',
-          content: `You are an expert resume writer trained in Rotman School of Management resume standards. Create a tailored, ATS-optimised, one-page resume.
+          content: `You are an expert resume writer. Create a tailored, ATS-optimised resume for this candidate applying to this specific job.
 
 CANDIDATE PROFILE:
 Name: ${profile.name || ''}
@@ -29,43 +97,35 @@ Skills: ${(profile.skills || []).join(', ')}
 Experience: ${experience}
 Industries: ${(profile.industries || []).join(', ')}
 
-FULL RESUME TEXT (this is your primary source — use ALL specific details, numbers, achievements, and exact wording from here):
+FULL RESUME TEXT (primary source — use ALL specific details, numbers, achievements from here):
 ${resumeText.slice(0, 3000)}
 
-JOB THEY ARE APPLYING TO:
+JOB:
 Title: ${job.title}
 Company: ${job.company}
-Description: ${(job.description || '').slice(0, 1200)}
-Key strengths match: ${(job.strengths || []).join(', ')}
-Gaps to address: ${(job.gaps || []).join(', ')}
+Description: ${(job.description || '').slice(0, 800)}
+Key strengths: ${(job.strengths || []).join(', ')}
 
-STRICT FORMATTING RULES:
+${templateSection}
+
+STRICT RULES:
 1. First line: candidate full name only
-2. Second line: phone | email | linkedin (extract all three from the resume text above — use exact values)
-3. Blank line after contact
-4. Use EXACTLY these section headers in EXACTLY this order (uppercase):
-   SUMMARY
-   EDUCATION
-   SKILLS
-   EXPERIENCE
-   COMMUNITY AND LEADERSHIP
-5. For each role under EXPERIENCE and EDUCATION format EXACTLY like:
+2. Second line: phone | email | linkedin (extract from resume text)
+3. Use EXACTLY these section headers in this order: SUMMARY, EDUCATION, SKILLS, EXPERIENCE, COMMUNITY AND LEADERSHIP
+4. For each role format EXACTLY as:
    Company Name | City, Country
-   Job Title | YEAR – YEAR
-   - bullet using real achievement from resume
-   - bullet using real achievement from resume
-6. Bullets start with - (dash space)
-7. SKILLS: comma separated on one line, no bullets
-8. SUMMARY: 2-3 lines tailored to ${job.company} role, use specific background from resume
-9. COMMUNITY AND LEADERSHIP: use the actual community involvement from the resume — never use placeholders
-10. One page max — 3-4 bullets per role, be concise
-11. Use ONLY actual data from the resume — never use placeholders like [Phone] or [LinkedIn URL]
-12. Mirror JD language and keywords throughout
-13. Preserve all specific numbers and achievements from the original (20%, $4B, 1000+, etc.)
-14. ATS compliant — no tables, no columns, no special characters except dash bullets
-15. No markdown, no asterisks, no hash symbols
-
-Output the resume now. Start with candidate name on line 1.`
+   Job Title | YEAR - YEAR
+   - bullet point
+5. Bullet points MUST follow this style: Action verb + what you did + quantified result + impact
+   Example: "Led a team of 3 to develop market entry strategy for Southeast Asia; delivered recommendations in 6 weeks that influenced USD 2Mn investment decision"
+6. Each bullet must be specific, quantified where possible, and outcome-focused
+7. SKILLS: comma separated on one line
+8. SUMMARY: 2-3 lines tailored to this specific role
+9. One page maximum, 3-4 bullets per role
+10. Use ONLY actual experience from the resume — never fabricate
+11. Mirror JD language and keywords throughout
+12. No markdown, no asterisks, no em dashes
+13. No placeholders like [Phone] or [LinkedIn]`
         }]
       }),
 
@@ -87,10 +147,10 @@ Company: ${job.company}
 Why they are a good fit: ${(job.strengths || []).join(', ')}
 Description: ${(job.description || '').slice(0, 800)}
 
-COVER LETTER STRUCTURE — follow this exactly:
+COVER LETTER STRUCTURE:
 
 Opening paragraph:
-- State the position you are applying for and where you found it
+- State the position you are applying for
 - Summarize your key qualifications that match their needs in 2-3 sentences
 - Show enthusiasm for the position and organization
 - Demonstrate you have researched the company
@@ -109,12 +169,11 @@ Closing paragraph:
 - Thank the employer for considering your application
 - Reiterate one key contribution you can make
 - Express enthusiasm to discuss your suitability in an interview
-- End with "Sincerely," followed by the candidate name on a new line
 
 STRICT RULES:
 1. Start with: Dear Hiring Manager,
 2. One page maximum, 4 paragraphs total
-3. Professional, confident tone — not stiff
+3. Professional, confident tone
 4. Use specific achievements and numbers from the resume
 5. Mirror the language from the job description
 6. No clichés: no "I am writing to express my interest", no "passionate about", no "great fit"
@@ -122,10 +181,8 @@ STRICT RULES:
 8. Plain text only, no markdown
 9. End with: Sincerely, then candidate name on the next line
 10. No em dashes anywhere. Use commas, periods, or rewrite the sentence instead
-11. Do not fabricate any experience, numbers, or achievements not in the resume
-12. Do not mention where the job was found or reference any careers portal
-
-Write the cover letter now.`
+11. Do not fabricate any experience not in the resume
+12. Do not mention where the job was found or reference any careers portal`
         }]
       })
     ])
@@ -133,6 +190,7 @@ Write the cover letter now.`
     return NextResponse.json({
       resume: resumeMsg.content[0].text,
       coverLetter: coverMsg.content[0].text,
+      vertical,
     })
 
   } catch (error) {
