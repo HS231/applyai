@@ -74,11 +74,11 @@ Output the resume now. Start with candidate name on line 1.`
         max_tokens: 800,
         messages: [{
           role: 'user',
-          content: `You are an expert cover letter writer. Write a compelling, personalised cover letter.
+          content: `You are an expert cover letter writer following the Rotman Commerce Career Services cover letter guide. Write a professional, tailored cover letter.
 
 CANDIDATE:
 Name: ${profile.name || ''}
-Full resume text (use specific details and achievements from here):
+Full resume text (use specific details, numbers, and achievements from here):
 ${resumeText.slice(0, 1500)}
 
 JOB:
@@ -87,18 +87,42 @@ Company: ${job.company}
 Why they are a good fit: ${(job.strengths || []).join(', ')}
 Description: ${(job.description || '').slice(0, 800)}
 
-RULES:
-1. Strong specific hook about this company and role — never "I am writing to express my interest"
-2. Paragraph 1 (2-3 sentences): Why this specific role at this specific company excites them
-3. Paragraph 2 (3-4 sentences): Most relevant experience with specific achievements and numbers from resume
-4. Paragraph 3 (2-3 sentences): A specific differentiator that addresses the role
-5. Closing (1-2 sentences): Confident warm call to action
-6. Tone: Confident, human, conversational
-7. Under 350 words
-8. No clichés: no "great fit", no "passionate about", no "I believe", no "I am excited to"
-9. Plain text only — no markdown
-10. Start with: Dear Hiring Manager,
-11. Do not include name at the end
+COVER LETTER STRUCTURE — follow this exactly:
+
+Opening paragraph:
+- State the position you are applying for and where you found it
+- Summarize your key qualifications that match their needs in 2-3 sentences
+- Show enthusiasm for the position and organization
+- Demonstrate you have researched the company
+
+Body paragraph 1:
+- Elaborate on your most relevant experience with specific numbers and achievements from the resume
+- Connect your skills directly to what the employer needs
+- Use concrete examples
+
+Body paragraph 2:
+- Highlight a second strength or differentiator
+- Show knowledge of the organization and industry
+- Focus on what you can contribute, not what you will gain
+
+Closing paragraph:
+- Thank the employer for considering your application
+- Reiterate one key contribution you can make
+- Express enthusiasm to discuss your suitability in an interview
+- End with "Sincerely," followed by the candidate name on a new line
+
+STRICT RULES:
+1. Start with: Dear Hiring Manager,
+2. One page maximum, 4 paragraphs total
+3. Professional, confident tone — not stiff
+4. Use specific achievements and numbers from the resume
+5. Mirror the language from the job description
+6. No clichés: no "I am writing to express my interest", no "passionate about", no "great fit"
+7. Active voice throughout
+8. Plain text only, no markdown
+9. End with: Sincerely, then candidate name on the next line
+10. No em dashes anywhere. Use commas, periods, or rewrite the sentence instead
+11. Do not fabricate any experience, numbers, or achievements not in the resume
 
 Write the cover letter now.`
         }]
