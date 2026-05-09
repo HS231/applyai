@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+// Detect vertical from job title and description
 async function detectVertical(jobTitle, jobDescription) {
   try {
     const msg = await anthropic.messages.create({
@@ -32,6 +33,7 @@ Examples:
   }
 }
 
+// Fetch template from Supabase — falls back to consulting template if vertical not found
 async function getResumeTemplate(vertical) {
   try {
     const { data } = await supabase
@@ -42,6 +44,7 @@ async function getResumeTemplate(vertical) {
 
     if (data) return data
 
+    // Fall back to consulting template
     const { data: fallback } = await supabase
       .from('resume_templates')
       .select('resume_text, vertical')
@@ -64,8 +67,11 @@ export async function POST(request) {
 
     const resumeText = profile.resume_text || ''
 
-    const vertical = await detectVertical(job.title, job.description)
-    const template = await getResumeTemplate(vertical)
+    // Detect vertical and fetch template in parallel
+    const [vertical, template] = await Promise.all([
+      detectVertical(job.title, job.description),
+      detectVertical(job.title, job.description).then(v => getResumeTemplate(v))
+    ])
 
     console.log('Detected vertical:', vertical)
     console.log('Template found:', template?.vertical || 'none')
@@ -105,27 +111,21 @@ ${templateSection}
 STRICT RULES:
 1. First line: candidate full name only
 2. Second line: phone | email | linkedin (extract from resume text)
-3. Use EXACTLY these section headers in this order: SUMMARY, EDUCATION, EXPERIENCE, SKILLS, INTERESTS AND ACHIEVEMENTS
+3. Use EXACTLY these section headers in this order: SUMMARY, EDUCATION, SKILLS, EXPERIENCE, COMMUNITY AND LEADERSHIP
 4. For each role format EXACTLY as:
    Company Name | City, Country
    Job Title | YEAR - YEAR
    - bullet point
 5. Bullet points MUST follow this style: Action verb + what you did + quantified result + impact
-   Example: "Led a team of 3 to develop market entry strategy; delivered recommendations in 6 weeks that influenced USD 2Mn investment decision"
+   Example: "Led a team of 3 to develop market entry strategy for Southeast Asia; delivered recommendations in 6 weeks that influenced USD 2Mn investment decision"
 6. Each bullet must be specific, quantified where possible, and outcome-focused
-7. SKILLS: comma separated on one line, no bullets
-8. SUMMARY: 2-3 lines tailored to this specific role at this company
-9. INTERESTS AND ACHIEVEMENTS: include awards, certifications, competitions, volunteering, interests from the resume to fill any white space
-10. ONE PAGE MAXIMUM — this is the most critical rule. Be ruthlessly concise:
-    - Maximum 3-4 bullets per role
-    - Maximum 3 roles if experience is extensive
-    - Each bullet maximum 20 words
-    - Summary maximum 2 lines
-    - If content exceeds one page, cut the least relevant bullets first
-11. Use ONLY actual experience from the resume — never fabricate
-12. Mirror JD language and keywords throughout
-13. No markdown, no asterisks, no em dashes
-14. No placeholders like [Phone] or [LinkedIn]`
+7. SKILLS: comma separated on one line
+8. SUMMARY: 2-3 lines tailored to this specific role
+9. One page maximum, 3-4 bullets per role
+10. Use ONLY actual experience from the resume — never fabricate
+11. Mirror JD language and keywords throughout
+12. No markdown, no asterisks, no em dashes
+13. No placeholders like [Phone] or [LinkedIn]`
         }]
       }),
 
