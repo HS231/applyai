@@ -129,7 +129,7 @@ function buildCoverLetterHTML(text, name, resumeText) {
     '.header{margin-bottom:20px;padding-bottom:8px;border-bottom:1px solid #000}',
     '.cl-name{font-weight:bold;font-size:11pt}',
     '.contact-info{font-size:9pt;color:#333;margin-top:2px}',
-    'p{margin-bottom:14px;text-align:justify}',
+    'body{font-family:Arial,sans-serif;font-size:10pt;line-height:1.6;color:#000;max-width:700px;margin:0 auto;padding:48px;text-align:justify}',
     '.date{margin-bottom:20px;margin-top:16px;font-size:10pt}',
     '.sig{margin-top:32px}',
     '.sig-name{font-weight:bold;font-size:10pt}',
@@ -146,7 +146,7 @@ function buildCoverLetterHTML(text, name, resumeText) {
     '<div class="contact-info">' + contactLine + '</div></div>' +
     '<p class="date">' + today + '</p>' +
     body +
-    '<div class="sig"><p>Sincerely,</p><div class="sig-name">' + (name || '') + '</div></div>' +
+    '<div class="sig">' + (name || '') + '</div>'
     '</body></html>'
 }
 

@@ -123,6 +123,7 @@ STRICT RULES:
 9. End with: Sincerely, then candidate name on the next line
 10. No em dashes anywhere. Use commas, periods, or rewrite the sentence instead
 11. Do not fabricate any experience, numbers, or achievements not in the resume
+12. Do not mention where the job was found or reference any careers portal
 
 Write the cover letter now.`
         }]
