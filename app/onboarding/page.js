@@ -45,7 +45,7 @@ export default function OnboardingPage() {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'Ubuntu, sans-serif' }}>🐦 Robin</span>
+          <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}><img src="/Logo.png" alt="Robin" style={{ width: 32, height: 32, objectFit: 'contain', filter: 'drop-shadow(0 0 8px oklch(0.74 0.14 185))' }} /><span style={{ fontFamily: 'Instrument Serif, serif', fontSize: 22, fontWeight: 400, color: 'oklch(0.96 0.01 90)' }}>Robin</span></a>
         </div>
 
         {/* Step tracker */}

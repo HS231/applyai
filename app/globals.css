@@ -1,11 +1,35 @@
 /* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Ubuntu:wght@300;400;500;700&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Tailwind v4 theme extension — Lovable landing page colors */
+@theme {
+  --color-background:         oklch(0.16 0.02 270);
+  --color-foreground:         oklch(0.96 0.01 90);
+  --color-card:               oklch(0.20 0.025 270);
+  --color-card-foreground:    oklch(0.96 0.01 90);
+  --color-primary:            oklch(0.96 0.01 90);
+  --color-primary-foreground: oklch(0.16 0.02 270);
+  --color-secondary:          oklch(0.26 0.03 270);
+  --color-secondary-foreground: oklch(0.96 0.01 90);
+  --color-muted:              oklch(0.24 0.025 270);
+  --color-muted-foreground:   oklch(0.70 0.02 90);
+  --color-border:             oklch(1 0 0 / 8%);
+  --color-input:              oklch(1 0 0 / 12%);
+  --color-cream:              oklch(0.96 0.025 85);
+  --color-coral:              oklch(0.72 0.15 180);
+  --color-ember:              oklch(0.58 0.13 220);
+
+  --font-display: "Instrument Serif", "Times New Roman", serif;
+  --font-sans:    "Inter", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+}
+
 :root {
+  /* Robin app theme (feed, apply, onboarding) */
   --accent:       #6b5ce7;
   --accent-dark:  #5a4dd6;
   --accent-light: #ede9fd;
@@ -28,10 +52,20 @@
   --bg-input:     rgba(255,255,255,0.7);
   --shadow-sm:    0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.06);
   --shadow:       0 2px 8px rgba(0,0,0,0.06), 0 16px 48px rgba(0,0,0,0.08);
+
+  /* Lovable signature values */
+  --gradient-aurora:  radial-gradient(at 20% 30%, oklch(0.70 0.16 180 / 0.45), transparent 55%),
+                      radial-gradient(at 80% 25%, oklch(0.58 0.15 215 / 0.45), transparent 55%),
+                      radial-gradient(at 70% 80%, oklch(0.62 0.14 165 / 0.40), transparent 55%),
+                      radial-gradient(at 10% 90%, oklch(0.48 0.12 235 / 0.45), transparent 60%);
+  --gradient-text:    linear-gradient(135deg, oklch(0.96 0.02 180), oklch(0.78 0.14 190));
+  --shadow-elegant:   0 30px 80px -20px oklch(0 0 0 / 0.6), 0 8px 30px -10px oklch(0 0 0 / 0.4);
+  --shadow-glow:      0 0 60px oklch(0.72 0.16 185 / 0.35);
 }
 
 * { box-sizing: border-box; }
 
+/* Landing page overrides body to dark */
 body {
   font-family: 'Inter', 'DM Sans', sans-serif;
   background: linear-gradient(135deg, #c8b8f8 0%, #a78bfa 25%, #7c6be8 45%, #4ecdc4 75%, #81e6d9 100%);
@@ -41,6 +75,74 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Landing page sets its own background via bg-background class */
+.bg-background { background-color: oklch(0.16 0.02 270) !important; }
+.text-foreground { color: oklch(0.96 0.01 90) !important; }
+
+/* ── Lovable animation utilities ── */
+.font-display { font-family: var(--font-display); font-weight: 400; letter-spacing: -0.02em; }
+.font-mono    { font-family: var(--font-mono); }
+
+.text-gradient {
+  background: var(--gradient-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.aurora { background: var(--gradient-aurora); filter: blur(60px); }
+
+.aurora-shift { animation: aurora-shift 18s ease-in-out infinite alternate; }
+@keyframes aurora-shift {
+  0%   { transform: translate3d(0,0,0) scale(1); }
+  50%  { transform: translate3d(-3%,2%,0) scale(1.05); }
+  100% { transform: translate3d(2%,-2%,0) scale(1.08); }
+}
+
+.float-slow { animation: floaty 9s ease-in-out infinite; }
+@keyframes floaty {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-12px); }
+}
+
+.grain::before {
+  content: "";
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.08;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glass {
+  background: oklch(1 0 0 / 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid oklch(1 0 0 / 0.08);
+}
+
+.marquee-track { animation: marquee 40s linear infinite; }
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity .8s cubic-bezier(.2,.8,.2,1), transform .8s cubic-bezier(.2,.8,.2,1); }
+.reveal.in { opacity: 1; transform: translateY(0); }
+
+.ticker-dot {
+  width: 6px; height: 6px;
+  border-radius: 9999px;
+  background: var(--color-coral);
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .4; transform: scale(.85); }
+}
+
+/* ── Robin app shared components ── */
 .input {
   width: 100%;
   background: var(--bg-input);
@@ -68,7 +170,7 @@ body {
   transition: background 0.15s;
   width: 100%;
 }
-.btn-primary:hover { background: var(--accent-dark); }
+.btn-primary:hover    { background: var(--accent-dark); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-ghost {
@@ -118,7 +220,7 @@ body {
   transition: all 0.15s;
   width: 100%;
 }
-.choice-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+.choice-btn:hover    { border-color: var(--accent); background: var(--accent-light); }
 .choice-btn.selected { border-color: var(--accent); background: var(--accent-light); color: var(--accent-dark); font-weight: 500; }
 
 .chip {
